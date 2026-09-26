@@ -1,47 +1,98 @@
-# Astro Starter Kit: Basics
+# Switch Deck
+
+Switch Deck is an Astro presentation library. Each Deck is a directory of ordered MDX Slides, rendered together at a static route so React component state survives navigation.
+
+## Development
+
+Requires Node.js 22.12 or newer.
 
 ```sh
-npm create astro@latest -- --template basics
+npm install
+npm run dev
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+The Deck Catalog is at `/`. The included example is at `/presentation-1`.
 
-## 🚀 Project Structure
+## Add a Deck
 
-Inside of your Astro project, you'll see the following folders and files:
+Create a directory under `src/content/decks`. Its directory name becomes the public route.
 
 ```text
-/
-├── public/
-│   └── favicon.svg
-├── src
-│   ├── assets
-│   │   └── astro.svg
-│   ├── components
-│   │   └── Welcome.astro
-│   ├── layouts
-│   │   └── Layout.astro
-│   └── pages
-│       └── index.astro
-└── package.json
+src/content/decks/my-deck/
+├── deck.json
+├── theme.css
+└── slides/
+		├── intro.mdx
+		└── demo.mdx
 ```
 
-To learn more about the folder structure of an Astro project, refer to [our guide on project structure](https://docs.astro.build/en/basics/project-structure/).
+Define the Deck metadata in `deck.json`:
 
-## 🧞 Commands
+```json
+{
+	"title": "My Deck",
+	"description": "What this Deck covers.",
+	"draft": false
+}
+```
 
-All commands are run from the root of the project, from a terminal:
+Draft Decks are available during development and excluded from production routes and the Deck Catalog.
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+Each Slide needs a unique kebab-case `slug` and integer `order`:
 
-## 👀 Want to learn more?
+```mdx
+---
+title: Interactive demo
+slug: interactive-demo
+order: 20
+---
 
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
-# switch-deck
+import Demo from "../../../../components/slides/Demo";
+
+## Components work here
+
+<Demo client:visible />
+```
+
+Slides are ordered by `order` and linked by hash, such as `/my-deck#interactive-demo`. All Slides stay mounted as the active Slide changes.
+
+## Theme a Deck
+
+An optional `theme.css` beside `deck.json` is loaded only for that Deck. Scope selectors to its generated Deck attribute:
+
+```css
+[data-deck="my-deck"] h1 {
+	color: tomato;
+}
+```
+
+## Present
+
+Open a Deck and choose **Start presentation**. Navigation supports:
+
+- Keyboard: Left Arrow for Previous; Right Arrow or Space for Next
+- Standard gamepads: D-pad, shoulder buttons, A, and B
+- Unknown controllers and horizontal Joy-Cons: follow the two-button calibration prompt
+- On-screen Previous and Next controls
+
+Controller Profiles are saved locally per controller. The first controller to send navigation input becomes active.
+
+Interactive components can temporarily own gamepad input:
+
+```ts
+window.switchDeck.captureInput("Demo controls");
+window.switchDeck.releaseInput();
+```
+
+Escape or the visible release action returns input to the Deck.
+
+## Validate
+
+```sh
+npm run check
+npm test
+npm run build
+npm run test:e2e
+```
+
+Playwright expects a running development server and uses `http://localhost:4321` by default. Override it with `PLAYWRIGHT_TEST_BASE_URL` when needed.

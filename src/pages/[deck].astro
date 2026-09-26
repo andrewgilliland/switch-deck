@@ -1,0 +1,31 @@
+---
+import DeckShell from "../components/deck/DeckShell.astro";
+import Layout from "../layouts/Layout.astro";
+import { getDecks, type Deck } from "../lib/decks";
+
+const themeStyles = import.meta.glob("../content/decks/*/theme.css", {
+  eager: true,
+  import: "default",
+  query: "?url",
+}) as Record<string, string>;
+
+export async function getStaticPaths() {
+  const decks = await getDecks();
+
+  return decks.map((deck) => ({
+    params: { deck: deck.slug },
+    props: { deck },
+  }));
+}
+
+interface Props {
+  deck: Deck;
+}
+
+const { deck } = Astro.props;
+const themeHref = themeStyles[`../content/decks/${deck.slug}/theme.css`];
+---
+
+<Layout title={deck.metadata.data.title} mode="deck" stylesheet={themeHref}>
+  <DeckShell deck={deck} />
+</Layout>

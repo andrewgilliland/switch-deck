@@ -1,0 +1,378 @@
+---
+import {
+  ArrowLeft,
+  ArrowRight,
+  Gamepad2,
+  Play,
+  RotateCcw,
+  X,
+} from "@lucide/astro";
+import { render } from "astro:content";
+import type { Deck } from "../../lib/decks";
+
+interface Props {
+  deck: Deck;
+}
+
+const { deck } = Astro.props;
+const renderedSlides = await Promise.all(
+  deck.slides.map(async (slide) => ({
+    Content: (await render(slide)).Content,
+    slide,
+  })),
+);
+---
+
+<main
+  class="deck-shell"
+  data-deck-shell
+  data-deck={deck.slug}
+  data-development={import.meta.env.DEV ? "true" : "false"}
+>
+  <div class="deck-viewport">
+    <div class="deck-stage">
+      {
+        renderedSlides.map(({ Content, slide }, index) => (
+          <section
+            class:list={["slide", { "is-active": index === 0 }]}
+            data-slide
+            data-slug={slide.data.slug}
+            id={slide.data.slug}
+            hidden={index !== 0}
+            aria-hidden={index !== 0 ? "true" : "false"}
+          >
+            <Content />
+          </section>
+        ))
+      }
+    </div>
+  </div>
+
+  <div class="launch" data-launch>
+    <button class="launch-button" type="button" data-start>
+      <Play size={20} aria-hidden="true" />
+      Start presentation
+    </button>
+  </div>
+
+  <nav class="deck-controls" data-controls aria-label="Slide controls">
+    <button
+      class="icon-button"
+      type="button"
+      data-previous
+      aria-label="Previous Slide"
+      title="Previous Slide"
+    >
+      <ArrowLeft aria-hidden="true" />
+    </button>
+    <output class="slide-position" data-position aria-live="polite"
+      >1 / {deck.slides.length}</output
+    >
+    <span class="end-marker" data-end hidden>End</span>
+    <button
+      class="icon-button"
+      type="button"
+      data-next
+      aria-label="Next Slide"
+      title="Next Slide"
+    >
+      <ArrowRight aria-hidden="true" />
+    </button>
+    <button
+      class="icon-button"
+      type="button"
+      data-controller-menu-button
+      aria-label="Controller options"
+      title="Controller options"
+    >
+      <Gamepad2 aria-hidden="true" />
+    </button>
+    <div class="controller-menu" data-controller-menu hidden>
+      <button type="button" data-select-controller>Choose controller</button>
+      <button type="button" data-reconfigure-controller>
+        <RotateCcw size={16} aria-hidden="true" /> Reconfigure
+      </button>
+    </div>
+    <button class="capture-release" type="button" data-release-capture hidden>
+      <X size={16} aria-hidden="true" /> Release controls
+    </button>
+  </nav>
+
+  <div class="calibration" data-calibration hidden>
+    <p class="calibration-label">Controller setup</p>
+    <p class="calibration-prompt" data-calibration-prompt></p>
+    <button type="button" data-cancel-calibration>Cancel</button>
+  </div>
+
+  <div class="status-toast" data-status role="status" aria-live="polite" hidden>
+  </div>
+</main>
+
+<script>
+  import { initializeDeckShell } from "../../lib/deck-runtime";
+
+  document
+    .querySelectorAll<HTMLElement>("[data-deck-shell]")
+    .forEach(initializeDeckShell);
+</script>
+
+<style>
+  .deck-shell {
+    --deck-bg: #f4f1e8;
+    --deck-ink: #151719;
+    --deck-accent: #ef4b36;
+    --deck-highlight: #1f9d91;
+    position: relative;
+    display: grid;
+    width: 100vw;
+    height: 100dvh;
+    place-items: center;
+    background:
+      repeating-linear-gradient(
+        90deg,
+        transparent 0 79px,
+        rgb(255 255 255 / 3%) 79px 80px
+      ),
+      #080a0b;
+    color: var(--deck-ink);
+    font-family: "Avenir Next", "Gill Sans", sans-serif;
+  }
+
+  .deck-viewport {
+    display: grid;
+    width: min(100vw, calc(100dvh * 16 / 9));
+    height: min(100dvh, calc(100vw * 9 / 16));
+    place-items: center;
+  }
+
+  .deck-stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--deck-bg);
+    box-shadow: 0 24px 80px rgb(0 0 0 / 55%);
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    align-content: center;
+    box-sizing: border-box;
+    padding: 5rem 6rem;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 160ms ease;
+  }
+
+  .slide.is-active {
+    opacity: 1;
+  }
+  .slide.is-leaving {
+    display: grid;
+  }
+  .slide[data-overflow="true"] {
+    outline: 4px solid #d92d20;
+    outline-offset: -4px;
+  }
+
+  :global(.slide h1),
+  :global(.slide h2) {
+    max-width: 14ch;
+    margin: 0 0 1.5rem;
+    font-family: "Iowan Old Style", "Palatino Linotype", serif;
+    font-size: 4.75rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 0.96;
+  }
+
+  :global(.slide h2) {
+    font-size: 3.25rem;
+  }
+  :global(.slide p),
+  :global(.slide li) {
+    max-width: 58rem;
+    font-size: 1.7rem;
+    line-height: 1.45;
+  }
+
+  .launch {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: rgb(8 10 11 / 72%);
+    backdrop-filter: blur(8px);
+    z-index: 5;
+  }
+
+  .launch-button,
+  .calibration button,
+  .controller-menu button,
+  .capture-release {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    border: 1px solid rgb(255 255 255 / 24%);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    background: #f4f1e8;
+    color: #111416;
+    font:
+      650 0.9rem/1 "Avenir Next",
+      sans-serif;
+    cursor: pointer;
+  }
+
+  .deck-controls {
+    position: absolute;
+    right: 1rem;
+    bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid rgb(255 255 255 / 16%);
+    border-radius: 6px;
+    padding: 0.35rem;
+    background: rgb(15 18 19 / 88%);
+    color: white;
+    opacity: 0;
+    transition: opacity 180ms ease;
+    z-index: 4;
+  }
+
+  .deck-controls[data-visible="true"],
+  .deck-controls:focus-within,
+  .deck-shell:hover .deck-controls {
+    opacity: 1;
+  }
+
+  .icon-button {
+    display: grid;
+    width: 2.5rem;
+    height: 2.5rem;
+    place-items: center;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .icon-button:hover,
+  .icon-button:focus-visible {
+    background: rgb(255 255 255 / 12%);
+  }
+  .icon-button:disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
+  .slide-position,
+  .end-marker {
+    min-width: 3.2rem;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+  .end-marker {
+    min-width: auto;
+    color: #ffb09f;
+    text-transform: uppercase;
+  }
+
+  .controller-menu {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 0.5rem);
+    display: grid;
+    min-width: 12rem;
+    gap: 0.35rem;
+    border: 1px solid rgb(255 255 255 / 16%);
+    border-radius: 6px;
+    padding: 0.45rem;
+    background: #101314;
+  }
+
+  .controller-menu button {
+    justify-content: flex-start;
+    border: 0;
+    background: transparent;
+    color: white;
+  }
+  .capture-release {
+    margin-left: 0.3rem;
+    background: #ffe2dc;
+  }
+
+  .calibration {
+    position: absolute;
+    top: 1rem;
+    left: 50%;
+    width: min(24rem, calc(100vw - 2rem));
+    box-sizing: border-box;
+    transform: translateX(-50%);
+    border: 1px solid rgb(255 255 255 / 18%);
+    border-radius: 6px;
+    padding: 1rem;
+    background: #101314;
+    color: white;
+    text-align: center;
+    z-index: 6;
+  }
+
+  .calibration-label {
+    margin: 0 0 0.45rem;
+    color: #8fd4cd;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .calibration-prompt {
+    margin: 0 0 1rem;
+    font-family: "Iowan Old Style", serif;
+    font-size: 1.35rem;
+  }
+
+  .status-toast {
+    position: absolute;
+    left: 1rem;
+    bottom: 1rem;
+    max-width: min(32rem, calc(100vw - 2rem));
+    border-left: 3px solid var(--deck-highlight);
+    padding: 0.65rem 0.8rem;
+    background: rgb(15 18 19 / 90%);
+    color: white;
+    font-size: 0.8rem;
+    z-index: 7;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+
+  @media (max-width: 760px) {
+    .slide {
+      padding: 1rem 1.5rem;
+    }
+    :global(.slide h1),
+    :global(.slide h2) {
+      margin-bottom: 0.5rem;
+      font-size: 1.65rem;
+    }
+    :global(.slide p),
+    :global(.slide li) {
+      margin-block: 0.35rem;
+      font-size: 0.78rem;
+      line-height: 1.3;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .slide,
+    .deck-controls {
+      transition: none;
+    }
+  }
+</style>

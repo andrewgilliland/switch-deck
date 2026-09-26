@@ -1,0 +1,70 @@
+[data-deck="presentation-1"] {
+  --deck-bg: #f5f0e6;
+  --deck-ink: #111619;
+  --deck-accent: #e84b32;
+  --deck-highlight: #159a8d;
+}
+
+[data-deck="presentation-1"] .slide::before {
+  position: absolute;
+  top: 2rem;
+  left: 2rem;
+  width: 3rem;
+  height: 0.4rem;
+  background: var(--deck-accent);
+  content: "";
+}
+
+[data-deck="presentation-1"] .slide::after {
+  position: absolute;
+  right: 2rem;
+  bottom: 2rem;
+  width: 0.85rem;
+  height: 0.85rem;
+  border: 3px solid var(--deck-highlight);
+  content: "";
+}
+
+[data-deck="presentation-1"] .counter-demo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+[data-deck="presentation-1"] .counter-demo span {
+  min-width: 4rem;
+  font-family: "Iowan Old Style", serif;
+  font-size: 3.5rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+[data-deck="presentation-1"] .counter-demo button {
+  border: 2px solid var(--deck-ink);
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  background: var(--deck-highlight);
+  color: white;
+  font:
+    700 1rem/1 "Avenir Next",
+    sans-serif;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  [data-deck="presentation-1"] .counter-demo {
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  [data-deck="presentation-1"] .counter-demo span {
+    min-width: 2rem;
+    font-size: 2rem;
+  }
+
+  [data-deck="presentation-1"] .counter-demo button {
+    padding: 0.5rem 0.65rem;
+    font-size: 0.7rem;
+  }
+}
