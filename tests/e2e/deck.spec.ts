@@ -1,5 +1,56 @@
 import { expect, test } from "@playwright/test";
 
+test("reports gamepad availability and button presses in the console", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const gamepad = {
+      index: 0,
+      id: "Test Joy-Con (L)",
+      mapping: "",
+      axes: [],
+      buttons: [
+        {
+          pressed: false,
+          get value() {
+            return document.body?.dataset.testPressed === "true" ? 1 : 0;
+          },
+        },
+        { pressed: false },
+      ],
+    };
+    Object.defineProperty(navigator, "getGamepads", {
+      configurable: true,
+      value: () => [gamepad],
+    });
+  });
+
+  const messages: string[] = [];
+  page.on("console", (message) => messages.push(message.text()));
+  await page.goto("/presentation-1");
+  await expect
+    .poll(() =>
+      messages.some((message) => message.includes("Gamepad diagnostics ready")),
+    )
+    .toBe(true);
+  await expect
+    .poll(() =>
+      messages.some((message) => message.includes("Gamepad detected")),
+    )
+    .toBe(true);
+
+  await page.evaluate(() => {
+    document.body.dataset.testPressed = "true";
+  });
+  await expect
+    .poll(() =>
+      messages.some((message) =>
+        message.includes("Test Joy-Con (L) pressed buttons [0]"),
+      ),
+    )
+    .toBe(true);
+});
+
 test("catalog opens a published Deck", async ({ page }) => {
   await page.goto("/");
   await expect(

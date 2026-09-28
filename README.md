@@ -77,6 +77,8 @@ Open a Deck and choose **Start presentation**. Navigation supports:
 
 Controller Profiles are saved locally per controller. The first controller to send navigation input becomes active.
 
+To verify a Joy-Con is visible to the browser, open a Deck route (for example, `/presentation-1`) in Chrome, open that tab's DevTools Console with the **Info** level enabled, and reload. `[Switch Deck] Gamepad diagnostics ready` confirms the Deck script loaded and reports whether the Gamepad API is available and how many controllers are currently exposed. Press a Joy-Con button to activate the browser's Gamepad API; look for `Gamepad detected` (ID, mapping, button/axis counts) and `pressed buttons` (button indices). Disconnects are logged too. If only the startup line appears, the browser has not exposed the controller to this page yet.
+
 Interactive components can temporarily own gamepad input:
 
 ```ts

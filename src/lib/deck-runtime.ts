@@ -53,6 +53,19 @@ export function initializeDeckShell(shell: HTMLElement): void {
   let controlsTimer = 0;
   let statusTimer = 0;
   const previousButtonStates = new Map<number, boolean[]>();
+  const seenGamepadIndices = new Set<number>();
+
+  function logGamepad(gamepad: Gamepad): void {
+    if (seenGamepadIndices.has(gamepad.index)) return;
+    seenGamepadIndices.add(gamepad.index);
+    console.info("[Switch Deck] Gamepad detected", {
+      index: gamepad.index,
+      id: gamepad.id,
+      mapping: gamepad.mapping,
+      buttons: gamepad.buttons.length,
+      axes: gamepad.axes.length,
+    });
+  }
 
   function showStatus(message: string, persistent = false): void {
     window.clearTimeout(statusTimer);
@@ -263,11 +276,17 @@ export function initializeDeckShell(shell: HTMLElement): void {
 
     for (const gamepad of gamepads) {
       if (!gamepad) continue;
-      const pressed = gamepad.buttons.map((button) => button.pressed);
+      logGamepad(gamepad);
+      const pressed = gamepad.buttons.map(
+        (button) => button.pressed || button.value >= 0.5,
+      );
       const previous =
         previousButtonStates.get(gamepad.index) ?? pressed.map(() => false);
       const newlyPressed = getNewlyPressedButtons(pressed, previous);
       previousButtonStates.set(gamepad.index, pressed);
+      if (newlyPressed.length > 0) {
+        console.log(`[Switch Deck] ${gamepad.id} pressed buttons`, newlyPressed);
+      }
 
       if (activeGamepadIndex === null && newlyPressed.length > 0) {
         activeGamepadIndex = gamepad.index;
@@ -381,10 +400,16 @@ export function initializeDeckShell(shell: HTMLElement): void {
   window.addEventListener("hashchange", () =>
     showSlide(findSlideIndex(slugs, window.location.hash), false),
   );
-  window.addEventListener("gamepadconnected", (event) =>
-    showStatus(`${event.gamepad.id} connected`),
-  );
+  window.addEventListener("gamepadconnected", (event) => {
+    logGamepad(event.gamepad);
+    showStatus(`${event.gamepad.id} connected`);
+  });
   window.addEventListener("gamepaddisconnected", (event) => {
+    console.info("[Switch Deck] Gamepad disconnected", {
+      index: event.gamepad.index,
+      id: event.gamepad.id,
+    });
+    seenGamepadIndices.delete(event.gamepad.index);
     previousButtonStates.delete(event.gamepad.index);
     if (activeGamepadIndex === event.gamepad.index) {
       activeGamepadIndex = null;
@@ -397,6 +422,10 @@ export function initializeDeckShell(shell: HTMLElement): void {
   window.addEventListener("pointermove", showControls, { passive: true });
   window.addEventListener("resize", () => checkOverflow(slides[activeIndex]));
 
+  console.info("[Switch Deck] Gamepad diagnostics ready", {
+    gamepadAPI: typeof navigator.getGamepads === "function",
+    connected: Array.from(navigator.getGamepads?.() ?? []).filter(Boolean).length,
+  });
   showSlide(initialIndex);
   requestAnimationFrame(pollGamepads);
 }
