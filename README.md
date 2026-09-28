@@ -88,6 +88,17 @@ window.switchDeck.releaseInput();
 
 Escape or the visible release action returns input to the Deck.
 
+## Tests
+
+Unit tests live beside the implementation under `src/` and use the `*.test.ts` suffix. Browser workflows live under `tests/e2e/` and use the `*.spec.ts` suffix.
+
+```text
+src/lib/navigation.test.ts   # Vitest unit test
+tests/e2e/deck.spec.ts       # Playwright browser workflows
+```
+
+Run unit tests with `npm test` and browser workflows with `npm run test:e2e`.
+
 ## Validate
 
 ```sh

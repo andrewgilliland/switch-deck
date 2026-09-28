@@ -32,6 +32,12 @@ npm run check
 
 When changing behavior, also run the relevant tests. Use `npm test` for unit tests, `npm run test:e2e` for browser workflows, and `npm run build` for production or routing changes.
 
+## Tests
+
+- Keep unit tests beside the implementation under `src/`, using `src/**/*.test.ts`.
+- Keep Playwright browser workflows under `tests/e2e/`, using `tests/e2e/**/*.spec.ts`.
+- Run `npm test` for unit tests and `npm run test:e2e` for browser workflows.
+
 ## Agent skills
 
 ### Issue tracker
