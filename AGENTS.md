@@ -21,6 +21,17 @@ Consult these guides before working on related tasks:
 - [Adding styles or using Tailwind](https://docs.astro.build/en/guides/styling/)
 - [Supporting multiple languages](https://docs.astro.build/en/guides/internationalization/)
 
+## Validation
+
+After making changes, run the checks that cover the edited code before considering the work complete:
+
+```sh
+npm run lint
+npm run check
+```
+
+When changing behavior, also run the relevant tests. Use `npm test` for unit tests, `npm run test:e2e` for browser workflows, and `npm run build` for production or routing changes.
+
 ## Agent skills
 
 ### Issue tracker
