@@ -4,16 +4,14 @@ import {
   getNewlyPressedButtons,
   moveSlide,
 } from "./navigation";
+import {
+  advanceCalibration,
+  beginCalibration as createCalibration,
+  type CalibrationState,
+  type ControllerButtonProfile,
+} from "./controller-calibration";
 
-interface ControllerProfile {
-  previous: number[];
-  next: number[];
-}
-
-type CalibrationPhase =
-  "wait-previous-release" | "previous" | "wait-next-release" | "next";
-
-const STANDARD_PROFILE: ControllerProfile = {
+const STANDARD_PROFILE: ControllerButtonProfile = {
   previous: [1, 4, 14],
   next: [0, 5, 15],
 };
@@ -45,10 +43,8 @@ export function initializeDeckShell(shell: HTMLElement): void {
   const initialIndex = findSlideIndex(slugs, window.location.hash);
   let activeIndex = 0;
   let activeGamepadIndex: number | null = null;
-  let activeProfile: ControllerProfile | null = null;
-  let calibrationPhase: CalibrationPhase | null = null;
-  let calibrationPrevious: number | null = null;
-  let calibrationNeedsDifferentButton = false;
+  let activeProfile: ControllerButtonProfile | null = null;
+  let calibrationState: CalibrationState | null = null;
   let inputCaptured = false;
   let controlsTimer = 0;
   let statusTimer = 0;
@@ -168,7 +164,7 @@ export function initializeDeckShell(shell: HTMLElement): void {
     };
   }
 
-  function loadProfile(gamepad: Gamepad): ControllerProfile | null {
+  function loadProfile(gamepad: Gamepad): ControllerButtonProfile | null {
     if (gamepad.mapping === "standard") return STANDARD_PROFILE;
 
     try {
@@ -176,7 +172,7 @@ export function initializeDeckShell(shell: HTMLElement): void {
         PROFILE_PREFIX + controllerProfileKey(identityFor(gamepad)),
       );
       if (!stored) return null;
-      const profile = JSON.parse(stored) as ControllerProfile;
+      const profile = JSON.parse(stored) as ControllerButtonProfile;
       return Array.isArray(profile.previous) && Array.isArray(profile.next)
         ? profile
         : null;
@@ -185,7 +181,10 @@ export function initializeDeckShell(shell: HTMLElement): void {
     }
   }
 
-  function saveProfile(gamepad: Gamepad, profile: ControllerProfile): void {
+  function saveProfile(
+    gamepad: Gamepad,
+    profile: ControllerButtonProfile,
+  ): void {
     try {
       localStorage.setItem(
         PROFILE_PREFIX + controllerProfileKey(identityFor(gamepad)),
@@ -199,23 +198,9 @@ export function initializeDeckShell(shell: HTMLElement): void {
   function beginCalibration(gamepad: Gamepad): void {
     activeGamepadIndex = gamepad.index;
     activeProfile = null;
-    calibrationPrevious = null;
-    calibrationNeedsDifferentButton = false;
-    calibrationPhase = "wait-previous-release";
+    calibrationState = createCalibration();
     calibration.hidden = false;
     calibrationPrompt.textContent = "Release all buttons";
-  }
-
-  function finishCalibration(gamepad: Gamepad, nextButtonIndex: number): void {
-    const profile = {
-      previous: [calibrationPrevious!],
-      next: [nextButtonIndex],
-    };
-    saveProfile(gamepad, profile);
-    activeProfile = profile;
-    calibrationPhase = null;
-    calibration.hidden = true;
-    showStatus(`${gamepad.id} configured`);
   }
 
   function processCalibration(
@@ -223,29 +208,18 @@ export function initializeDeckShell(shell: HTMLElement): void {
     pressed: boolean[],
     newlyPressed: number[],
   ): boolean {
-    if (!calibrationPhase) return false;
-    const anyPressed = pressed.some(Boolean);
+    if (!calibrationState) return false;
+    const step = advanceCalibration(calibrationState, pressed, newlyPressed);
+    if (!step.handled) return false;
 
-    if (calibrationPhase === "wait-previous-release" && !anyPressed) {
-      calibrationPhase = "previous";
-      calibrationPrompt.textContent = "Press Previous";
-    } else if (calibrationPhase === "previous" && newlyPressed.length > 0) {
-      calibrationPrevious = newlyPressed[0];
-      calibrationPhase = "wait-next-release";
-      calibrationPrompt.textContent = "Release all buttons";
-    } else if (calibrationPhase === "wait-next-release" && !anyPressed) {
-      calibrationPhase = "next";
-      calibrationPrompt.textContent = calibrationNeedsDifferentButton
-        ? "Press a different button for Next"
-        : "Press Next";
-    } else if (calibrationPhase === "next" && newlyPressed.length > 0) {
-      if (newlyPressed[0] === calibrationPrevious) {
-        calibrationNeedsDifferentButton = true;
-        calibrationPhase = "wait-next-release";
-        calibrationPrompt.textContent = "Release all buttons";
-      } else {
-        finishCalibration(gamepad, newlyPressed[0]);
-      }
+    calibrationState = step.state;
+    calibrationPrompt.textContent = step.prompt;
+    if (step.profile) {
+      saveProfile(gamepad, step.profile);
+      activeProfile = step.profile;
+      calibrationState = null;
+      calibration.hidden = true;
+      showStatus(`${gamepad.id} configured`);
     }
 
     return true;
@@ -284,8 +258,20 @@ export function initializeDeckShell(shell: HTMLElement): void {
         previousButtonStates.get(gamepad.index) ?? pressed.map(() => false);
       const newlyPressed = getNewlyPressedButtons(pressed, previous);
       previousButtonStates.set(gamepad.index, pressed);
+      const newlyReleased = previous.flatMap((wasPressed, index) =>
+        wasPressed && !pressed[index] ? [index] : [],
+      );
       if (newlyPressed.length > 0) {
-        console.log(`[Switch Deck] ${gamepad.id} pressed buttons`, newlyPressed);
+        console.log(
+          `[Switch Deck] ${gamepad.id} pressed buttons`,
+          newlyPressed,
+        );
+      }
+      if (newlyReleased.length > 0) {
+        console.log(
+          `[Switch Deck] ${gamepad.id} released buttons`,
+          newlyReleased,
+        );
       }
 
       if (activeGamepadIndex === null && newlyPressed.length > 0) {
@@ -344,7 +330,7 @@ export function initializeDeckShell(shell: HTMLElement): void {
     ?.addEventListener("click", () => {
       activeGamepadIndex = null;
       activeProfile = null;
-      calibrationPhase = null;
+      calibrationState = null;
       calibration.hidden = true;
       controllerMenu.hidden = true;
       showStatus("Waiting for controller input", true);
@@ -373,7 +359,7 @@ export function initializeDeckShell(shell: HTMLElement): void {
   shell
     .querySelector("[data-cancel-calibration]")
     ?.addEventListener("click", () => {
-      calibrationPhase = null;
+      calibrationState = null;
       calibration.hidden = true;
       activeGamepadIndex = null;
       activeProfile = null;
@@ -414,7 +400,7 @@ export function initializeDeckShell(shell: HTMLElement): void {
     if (activeGamepadIndex === event.gamepad.index) {
       activeGamepadIndex = null;
       activeProfile = null;
-      calibrationPhase = null;
+      calibrationState = null;
       calibration.hidden = true;
       showStatus(`${event.gamepad.id} disconnected`);
     }
@@ -424,7 +410,8 @@ export function initializeDeckShell(shell: HTMLElement): void {
 
   console.info("[Switch Deck] Gamepad diagnostics ready", {
     gamepadAPI: typeof navigator.getGamepads === "function",
-    connected: Array.from(navigator.getGamepads?.() ?? []).filter(Boolean).length,
+    connected: Array.from(navigator.getGamepads?.() ?? []).filter(Boolean)
+      .length,
   });
   showSlide(initialIndex);
   requestAnimationFrame(pollGamepads);
